@@ -1,10 +1,5 @@
 FROM node:18-alpine
 
-# Install Python and required packages for Ollama
-RUN apk add --no-cache python3 && \
-    python3 -m ensurepip && \
-    pip3 install --no-cache-dir --break-system-packages onnxruntime pathvalidate
-
 # Create app directory
 WORKDIR /app
 
