@@ -23,6 +23,5 @@ EXPOSE 3000
 # Install Ollama
 RUN curl -fsSL https://ollama.com/install.sh | sh
 
-# Start Ollama in background, then start Node server
-CMD ["sh", "-c", "ollama serve &"] && \
-    ["node", "server.js"]
+# Start command: launch ollama serve in background, then run node server
+CMD sh -c "ollama serve &" && node server.js
