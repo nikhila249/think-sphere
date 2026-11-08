@@ -1,0 +1,25 @@
+/* A cinematic first fold, keeping ThinkSphere's warm monochrome identity. */
+.hero{isolation:isolate;background:#0a0a0a;color:#f2efea}
+.hero:before{content:"";position:absolute;inset:0;z-index:-1;background:radial-gradient(ellipse at 75% 53%,rgba(136,141,145,.18),transparent 36%),radial-gradient(ellipse at 12% 100%,rgba(136,141,145,.08),transparent 35%)}
+.hero .eyebrow{color:#d4d1cb}
+.hero .eyebrow-dot{background:#c5c3bc;box-shadow:0 0 0 4px rgba(242,239,234,.1),0 0 20px rgba(242,239,234,.45)}
+.hero h1{font-weight:500}
+.hero h1 em{color:#aaa9a1}
+.hero .period{color:#888d91}
+.hero-bottom p{color:#c0bfba}
+.hero .round-link{border-color:rgba(242,239,234,.66);color:var(--paper)}
+.hero .round-link:hover{background:var(--paper);color:var(--ink)}
+.hero .art-grid{background-image:linear-gradient(rgba(242,239,234,.075) 1px,transparent 1px),linear-gradient(90deg,rgba(242,239,234,.075) 1px,transparent 1px);opacity:.52}
+.hero .orbit{border-color:rgba(242,239,234,.29);box-shadow:0 0 30px rgba(242,239,234,.025),inset 0 0 25px rgba(242,239,234,.025)}
+.hero .orb-main{background:radial-gradient(circle at 34% 28%,#fbfaf7 0,#d1cec8 35%,#8d8f8e 72%,#4d5050 100%);box-shadow:0 25px 90px rgba(0,0,0,.55),0 0 70px rgba(242,239,234,.13)}
+.hero .orb-main:before{border-color:rgba(10,10,10,.48);box-shadow:inset 0 0 28px rgba(10,10,10,.12)}
+.hero .orb-main svg{filter:drop-shadow(0 2px 1px rgba(255,255,255,.13))}
+.hero .art-glow{background:#c8c6c0;opacity:.19;filter:blur(115px)}
+.hero .satellite{box-shadow:0 9px 23px rgba(0,0,0,.35),inset 3px 3px 7px rgba(255,255,255,.16);border:1px solid rgba(242,239,234,.38)}
+.hero .sat-one{width:78px;height:34px;border-radius:22px;background:linear-gradient(145deg,#efede7,#888b8b);color:#111;font-size:17px}
+.hero .sat-two{background:radial-gradient(circle at 32% 28%,#f5f3ed,#888d91 72%,#4d5050);color:#0a0a0a}
+.hero .sat-three{background:linear-gradient(145deg,#d7d4cd,#656969);color:#111;border-radius:9px;transform:rotate(12deg)}
+.hero .art-label{color:#e0ded8}
+.hero .art-label span{color:#aaa9a1;opacity:1}
+.hero-index{color:#e0ded8}
+@media(max-width:600px){.hero{background:#0a0a0a}.hero .hero-art{opacity:.82}.hero .art-grid{opacity:.38}}

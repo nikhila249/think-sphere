@@ -1,0 +1,25 @@
+.type-line,.quote-line{display:block}
+.intro-content h2 .type-line,.focus-head>p .type-line,.connect-main h2 .type-line,.manifesto blockquote .quote-line{opacity:0;transform:translateY(20px);transition:opacity .7s ease,transform .7s cubic-bezier(.2,.75,.25,1)}
+.intro-content.visible h2 .type-line,.focus-head>p.visible .type-line,.connect-main.visible h2 .type-line,.manifesto blockquote.visible .quote-line{opacity:1;transform:translateY(0)}
+.intro-content.visible h2 .type-line:nth-child(2),.focus-head>p.visible .type-line:nth-child(2),.connect-main.visible h2 .type-line:nth-child(2),.manifesto blockquote.visible .quote-line:nth-child(2){transition-delay:.14s}
+.manifesto blockquote.visible .quote-line:nth-child(3){transition-delay:.28s}
+.intro-text .intro-lead{font-size:18px;line-height:1.45;font-weight:600;letter-spacing:-.035em;color:var(--ink);max-width:330px}
+.idea-tags{display:flex;flex-wrap:wrap;gap:7px;margin:21px 0 11px}
+.idea-tags span{border:1px solid rgba(10,10,10,.21);border-radius:24px;padding:8px 10px;font:8px var(--mono);letter-spacing:.08em;color:#555650;transition:background .25s,color .25s,transform .25s}
+.idea-tags span:hover{background:var(--ink);color:var(--paper);transform:translateY(-2px)}
+.idea-tags b{font-size:11px;margin-left:5px;font-weight:400}
+.text-link{position:relative}
+.text-link:after{content:"";position:absolute;left:0;right:100%;bottom:-2px;height:1px;background:var(--gray);transition:right .35s ease}
+.text-link:hover:after{right:0}
+.focus-head>p .type-line{display:block}
+.focus-head>p .type-line:nth-child(2){font-family:var(--serif);font-style:italic;color:#777871}
+.manifesto blockquote .quote-line{display:block}
+.connect-action{display:flex;flex-direction:column;align-items:flex-start;gap:12px;padding-bottom:5px}
+.connect-action>p{font:italic 15px var(--serif);color:#666761;margin:0}
+.connect-button{position:relative;overflow:hidden}
+.connect-button:before{content:"";position:absolute;inset:0;background:rgba(242,239,234,.14);transform:translateX(-105%) skewX(-15deg);transition:transform .55s cubic-bezier(.2,.7,.2,1)}
+.connect-button:hover:before{transform:translateX(0) skewX(-15deg)}
+.connect-button span{position:relative}
+@media(max-width:850px){.intro-text .intro-lead{font-size:16px}.connect-action>p{font-size:14px}}
+@media(max-width:600px){.intro-content h2 .type-line,.focus-head>p .type-line,.connect-main h2 .type-line,.manifesto blockquote .quote-line{transition-duration:.55s}.intro-text .intro-lead{font-size:17px}.idea-tags{gap:6px;margin-top:17px}.idea-tags span{font-size:7px;padding:8px 9px}.connect-action{gap:10px}.connect-action>p{font-size:14px}}
+@media(prefers-reduced-motion:reduce){.intro-content h2 .type-line,.focus-head>p .type-line,.connect-main h2 .type-line,.manifesto blockquote .quote-line{opacity:1;transform:none;transition:none}.idea-tags span,.connect-button:before{transition:none}}

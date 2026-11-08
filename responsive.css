@@ -1,0 +1,88 @@
+img{max-width:100%}
+
+@media (max-width:768px){
+  .menu-toggle{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    gap:5px;
+    width:44px;
+    height:44px;
+    margin-left:8px;
+    padding:0;
+    background:none;
+    border:0;
+    color:var(--ink);
+    cursor:pointer;
+  }
+  .menu-toggle span{
+    display:block;
+    width:22px;
+    height:1.5px;
+    background:currentColor;
+    border-radius:2px;
+    transition:transform .3s ease;
+  }
+  .menu-toggle[aria-expanded="true"] span:nth-child(1){transform:translateY(3.25px) rotate(45deg)}
+  .menu-toggle[aria-expanded="true"] span:nth-child(2){transform:translateY(-3.25px) rotate(-45deg)}
+  .header-cta{margin-left:auto}
+  .nav-links{
+    position:absolute;
+    top:100%;
+    left:0;
+    right:0;
+    display:none;
+    flex-direction:column;
+    gap:0;
+    margin:0;
+    padding:8px 6vw 22px;
+    background:var(--paper);
+    border-bottom:1px solid var(--line);
+    box-shadow:0 20px 34px rgba(10,10,10,.09);
+    z-index:20;
+  }
+  .nav-links.open{display:flex}
+  .nav-links a{
+    padding:15px 0;
+    font-size:14px;
+    border-bottom:1px solid rgba(10,10,10,.1);
+    opacity:.8;
+  }
+  .nav-links a:last-child{border-bottom:0}
+}
+
+@media (max-width:600px){
+  .intro-note{flex-wrap:wrap;gap:8px 16px}
+  .intro-note span:nth-child(2){flex:1 1 auto}
+  .ecosystem-foot{flex-wrap:wrap;gap:8px 14px;font-size:7px}
+  .ecosystem-foot span:last-child{text-align:left}
+  .focus-card{min-height:0}
+  .hero .hero-art{opacity:.62}
+}
+
+@media (max-width:480px){
+  .connect-bottom{flex-direction:column;align-items:flex-start;gap:14px}
+  .connect-bottom .footer-brand{width:auto}
+  .connect-bottom .cin{margin:0}
+  .connect-bottom>span:last-child{width:auto;text-align:left}
+  .connect-button{gap:28px}
+  .hero-index{bottom:22px}
+}
+
+@media (max-width:380px){
+  .hero-copy h1{font-size:clamp(56px,17vw,72px)}
+  .intro h2{font-size:clamp(46px,14vw,62px)}
+  .connect h2{font-size:clamp(46px,13.5vw,68px)}
+  .manifesto blockquote{font-size:clamp(38px,11vw,54px)}
+  .focus-head>p{font-size:15px;margin-left:0}
+  .idea-tags span{font-size:7px;padding:7px 8px}
+  .connect-button{gap:20px;padding:16px 18px 16px 20px}
+  .header-cta{margin-right:10px;padding:9px 12px;font-size:10px}
+}
+
+@media (hover:none){
+  .focus-card:hover{transform:none;box-shadow:none;border-color:rgba(10,10,10,.12)}
+  .idea-tags span:hover{background:transparent;color:#555650;transform:none}
+  .ecosystem-node:hover{transform:none;box-shadow:0 9px 24px rgba(10,10,10,.055);border-color:rgba(10,10,10,.12)}
+}
