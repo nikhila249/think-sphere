@@ -6,6 +6,9 @@ const crypto = require('crypto');
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT) || 3000;
 
+const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:1.5b';
+
 const MIME = {
   '.html': 'text/html; charset=utf-8',
   '.css': 'text/css; charset=utf-8',
@@ -119,8 +122,46 @@ const server = http.createServer(async (req, res) => {
   if (pathname === '/api/explain' && req.method === 'POST') {
     try {
       const body = JSON.parse(await readBody(req));
-      return json(res, 200, { text: 'Hello! This service is running on Render.' });
+      
+      // Call Ollama AI
+      const system = 'You are Aria, a warm, friendly female voice guide on the ThinkSphere Super Intelligence website. '
+        + 'You are speaking aloud to a visitor. Reply with exactly one or two short sentences, maximum 30 words total. '
+        + 'Speak directly to the visitor. Do not describe the section or your answer. '
+        + 'Never use markdown, bullet points, emojis, quotes, or reasoning.'
+        + ' You may begin with a short welcome.';
+      const user = 'Section title: "ThinkSphere Super Intelligence". '
+        + 'Material: The website is about intelligent AI-powered products and solutions that simplify lives, empower people, and create a smarter future. '
+        + 'Now speak as Aria to the visitor about this section.';
+
+      const payload = {
+        model: OLLAMA_MODEL,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user }
+        ],
+        stream: false,
+        think: false,
+        keep_alive: '30m',
+        options: { temperature: 0.55, num_predict: 110 }
+      };
+
+      const res = await fetch(OLLAMA_URL + '/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(90000)
+      });
+      
+      if (!res.ok) throw new Error('Ollama responded ' + res.status);
+      const data = await res.json();
+      const raw = (data.message && data.message.content) || data.response || '';
+      let text = cleanSpeech(raw);
+      if (!text) throw new Error('Empty response from Ollama');
+      if (text.length > 200) text = text.slice(0, 197) + '…';
+      
+      return json(res, 200, { text });
     } catch (err) {
+      console.error('/api/explain error:', err.message);
       return json(res, 502, { error: String(err.message || err) });
     }
   }
@@ -130,22 +171,16 @@ const server = http.createServer(async (req, res) => {
       const body = JSON.parse(await readBody(req));
       const text = cleanSpeech(body.text);
       if (!text) return json(res, 400, { error: 'No text to speak' });
-      const hash = crypto.createHash('sha1').update(text).digest('hex');
-      const outFile = path.join(ROOT, 'cache', hash + '.wav');
-      if (!fs.existsSync(path.dirname(outFile))) fs.mkdirSync(path.dirname(outFile), { recursive: true });
-      if (!fs.existsSync(outFile)) {
-        return json(res, 501, { error: 'TTS not available - simplify server for Render' });
-      }
-      const stat = fs.statSync(outFile);
-      res.writeHead(200, {
-        'Content-Type': 'audio/wav',
-        'Content-Length': stat.size,
-        'Cache-Control': 'public, max-age=86400',
-        'Access-Control-Allow-Origin': '*'
+      
+      // TTS requires Piper which needs Python/.venv - not available on Render free tier
+      // Option: Return text so client can handle TTS, or use external TTS service
+      return json(res, 200, { 
+        text,
+        note: 'TTS requires local Piper installation. For Render deployment, use external TTS API or enable later.',
+        ttsAvailable: false
       });
-      fs.createReadStream(outFile).pipe(res);
-      return;
     } catch (err) {
+      console.error('/api/tts error:', err.message);
       return json(res, 500, { error: String(err.message || err) });
     }
   }
@@ -159,4 +194,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log('ThinkSphere Super Intelligence is running at http://localhost:' + PORT);
+  console.log('Ollama model : ' + OLLAMA_MODEL + '  (' + OLLAMA_URL + ')');
 });
