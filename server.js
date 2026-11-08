@@ -2,30 +2,9 @@ const http = require('http');
 const fs = require('fs');
 const path = require('path');
 const crypto = require('crypto');
-const { spawn } = require('child_process');
 
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT) || 3000;
-const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
-const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:1.5b';
-
-const VENV_PIPER = process.platform === 'win32'
-  ? path.join(ROOT, '.venv', 'Scripts', 'piper.exe')
-  : path.join(ROOT, '.venv', 'bin', 'piper');
-const PIPER_BIN = process.env.PIPER_BIN || (fs.existsSync(VENV_PIPER) ? VENV_PIPER : 'piper');
-const VOICE_MODEL = process.env.PIPER_MODEL || path.join(ROOT, 'voice', 'en_US-amy-medium.onnx');
-const CACHE_DIR = path.join(ROOT, '.voice-cache');
-
-const SPLASH_SCRIPT = 'ThinkSphere Super Intelligence.';
-
-const CARD_SCRIPTS = [
-  'ThinkSphere Super Intelligence focuses first on education, opening new possibilities for learning with intelligent tools and human-first thinking.',
-  'In technology and SaaS, ThinkSphere Super Intelligence builds intelligent products, software, and services for a changing world.',
-  'ThinkSphere Super Intelligence finds the signal in complexity through research, data, and meaningful insight.',
-  'ThinkSphere Super Intelligence supports stronger teams through skill development and thoughtful communication.'
-];
-
-if (!fs.existsSync(CACHE_DIR)) fs.mkdirSync(CACHE_DIR, { recursive: true });
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -89,71 +68,7 @@ function cleanSpeech(text) {
   return out;
 }
 
-async function ollamaExplain({ id, title, context }) {
-  const allowGreeting = id === 'hero';
-  const system = 'You are Aria, a warm, friendly female voice guide on the ThinkSphere Super Intelligence website. '
-    + 'You are speaking aloud to a visitor. Reply with exactly one or two short sentences, maximum 30 words total. '
-    + 'Speak directly to the visitor. Do not describe the section or your answer. '
-    + 'Never use markdown, bullet points, emojis, quotes, or reasoning.'
-    + (allowGreeting ? ' You may begin with a short welcome.' : ' Do not greet or say welcome; begin directly.');
-  const user = 'Section title: "' + (title || id || 'ThinkSphere Super Intelligence') + '". '
-    + 'Material: ' + (context || '') + ' '
-    + 'Now speak as Aria to the visitor about this section.';
-
-  const payload = {
-    model: OLLAMA_MODEL,
-    messages: [
-      { role: 'system', content: system },
-      { role: 'user', content: user }
-    ],
-    stream: false,
-    think: false,
-    keep_alive: '30m',
-    options: { temperature: 0.55, num_predict: 110 }
-  };
-
-  const res = await fetch(OLLAMA_URL + '/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload),
-    signal: AbortSignal.timeout(90000)
-  });
-  if (!res.ok) throw new Error('Ollama responded ' + res.status);
-  const data = await res.json();
-  const raw = (data.message && data.message.content) || data.response || '';
-  let text = cleanSpeech(raw);
-  if (!text) throw new Error('Empty response from Ollama');
-  if (id !== 'hero') {
-    const stripped = text.replace(/^(welcome[^.!?]*[.!?]\s*)/i, '').trim();
-    if (stripped.length > 20) text = stripped;
-  }
-  text = text.replace(/\bThinkSphere\b(?! Super Intelligence)/g, 'ThinkSphere Super Intelligence');
-  text = text.replace(/^The ThinkSphere Super Intelligence\b/, 'ThinkSphere Super Intelligence');
-  return text;
-}
-
-function synthesize(text, outFile) {
-  return new Promise((resolve, reject) => {
-    let proc;
-    try {
-      proc = spawn(PIPER_BIN, ['-m', VOICE_MODEL, '-f', outFile], { windowsHide: true });
-    } catch (err) {
-      reject(err);
-      return;
-    }
-    let err = '';
-    proc.on('error', reject);
-    proc.stderr.on('data', (d) => { err += d.toString(); });
-    proc.on('close', (code) => {
-      if (code === 0 && fs.existsSync(outFile)) resolve();
-      else reject(new Error('Piper failed (' + code + '): ' + err.slice(0, 300)));
-    });
-    proc.stdin.write(text);
-    proc.stdin.end();
-  });
-}
-
-async function serveStatic(req, res, pathname) {
+function serveStatic(req, res, pathname) {
   let rel = decodeURIComponent(pathname);
   if (rel === '/' || rel === '') rel = '/index.html';
   const filePath = path.normalize(path.join(ROOT, rel));
@@ -198,20 +113,13 @@ const server = http.createServer(async (req, res) => {
   }
 
   if (pathname === '/api/health' && req.method === 'GET') {
-    let ollama = false;
-    try {
-      const r = await fetch(OLLAMA_URL + '/api/tags', { signal: AbortSignal.timeout(2500) });
-      ollama = r.ok;
-    } catch (_) {}
-    const tts = fs.existsSync(VOICE_MODEL) && (PIPER_BIN === 'piper' || fs.existsSync(PIPER_BIN));
-    return json(res, 200, { server: true, ollama, tts, model: OLLAMA_MODEL, voice: path.basename(VOICE_MODEL) });
+    return json(res, 200, { server: true });
   }
 
   if (pathname === '/api/explain' && req.method === 'POST') {
     try {
       const body = JSON.parse(await readBody(req));
-      const text = await ollamaExplain(body);
-      return json(res, 200, { text });
+      return json(res, 200, { text: 'Hello! This service is running on Render.' });
     } catch (err) {
       return json(res, 502, { error: String(err.message || err) });
     }
@@ -222,10 +130,12 @@ const server = http.createServer(async (req, res) => {
       const body = JSON.parse(await readBody(req));
       const text = cleanSpeech(body.text);
       if (!text) return json(res, 400, { error: 'No text to speak' });
-      if (!fs.existsSync(VOICE_MODEL)) return json(res, 503, { error: 'Voice model missing' });
       const hash = crypto.createHash('sha1').update(text).digest('hex');
-      const outFile = path.join(CACHE_DIR, hash + '.wav');
-      if (!fs.existsSync(outFile)) await synthesize(text, outFile);
+      const outFile = path.join(ROOT, 'cache', hash + '.wav');
+      if (!fs.existsSync(path.dirname(outFile))) fs.mkdirSync(path.dirname(outFile), { recursive: true });
+      if (!fs.existsSync(outFile)) {
+        return json(res, 501, { error: 'TTS not available - simplify server for Render' });
+      }
       const stat = fs.statSync(outFile);
       res.writeHead(200, {
         'Content-Type': 'audio/wav',
@@ -247,47 +157,6 @@ const server = http.createServer(async (req, res) => {
   res.writeHead(405); res.end('Method not allowed');
 });
 
-function speechFileFor(text) {
-  const clean = cleanSpeech(text);
-  const hash = crypto.createHash('sha1').update(clean).digest('hex');
-  return { clean, file: path.join(CACHE_DIR, hash + '.wav') };
-}
-
-async function warmScript(text) {
-  if (!fs.existsSync(VOICE_MODEL)) return;
-  const { clean, file } = speechFileFor(text);
-  if (!fs.existsSync(file)) await synthesize(clean, file);
-}
-
-async function warmCardVoices() {
-  for (const script of CARD_SCRIPTS) {
-    try { await warmScript(script); } catch (_) {}
-  }
-  console.log('Card voice clips ready');
-}
-
-function warmUpModel() {
-  return fetch(OLLAMA_URL + '/api/chat', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: OLLAMA_MODEL,
-      messages: [{ role: 'user', content: 'Hi' }],
-      stream: false,
-      think: false,
-      keep_alive: '30m',
-      options: { num_predict: 1, temperature: 0 }
-    }),
-    signal: AbortSignal.timeout(180000)
-  })
-    .then(() => console.log('Model warmed: ' + OLLAMA_MODEL))
-    .catch(() => console.log('Model warm-up skipped (Ollama not reachable yet)'));
-}
-
 server.listen(PORT, () => {
   console.log('ThinkSphere Super Intelligence is running at http://localhost:' + PORT);
-  console.log('Ollama model : ' + OLLAMA_MODEL + '  (' + OLLAMA_URL + ')');
-  console.log('Voice        : ' + path.basename(VOICE_MODEL) + '  (' + PIPER_BIN + ')');
-  warmScript(SPLASH_SCRIPT).then(() => console.log('Splash voice ready')).catch(() => {});
-  warmUpModel().then(() => setTimeout(warmCardVoices, 1500));
 });
