@@ -134,7 +134,7 @@ const server = http.createServer(async (req, res) => {
           'Authorization': `Bearer ${OPENAI_API_KEY}`
         },
         body: JSON.stringify({
-          model: 'gpt-3.5-turbo-latest',
+          model: 'gpt-4o-mini',
           messages: [
             { role: 'system', content: 'You are Aria, a warm, friendly female voice guide on the ThinkSphere Super Intelligence website. You are speaking aloud to a visitor. Reply with exactly one or two short sentences, maximum 30 words total. Speak directly to the visitor. Do not describe the section or your answer. Never use markdown, bullet points, emojis, quotes, or reasoning.' },
             { role: 'user', content: 'Section: ThinkSphere Super Intelligence. The website is about intelligent AI-powered products and solutions that simplify lives, empower people, and create a smarter future. Now speak as Aria to the visitor about this section.' }
