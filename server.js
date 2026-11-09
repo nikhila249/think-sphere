@@ -140,14 +140,13 @@ const server = http.createServer(async (req, res) => {
         }
       };
       
-      const response = await fetch('https://api-inference.huggingface.co/models/meta-llama/Llama-3.2-1B-Instruct', {
+      const response = await fetch('https://api-inference.huggingface.co/models/facebook/opt-350m', {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${HF_API_KEY}`,
-          'Content-Type': 'application/json'
         },
-        body: JSON.stringify(payload),
-        timeout: 30000
+        body: JSON.stringify({ inputs: systemPrompt + ' ' + userPrompt }),
+        timeout: 15000
       });
       
       if (!response.ok) {
@@ -158,13 +157,13 @@ const server = http.createServer(async (req, res) => {
       const data = await response.json();
       let text = '';
       
-      // Handle different response formats from Hugging Face
-      if (Array.isArray(data) && data[0] && data[0].generated_text) {
-        text = data[0].generated_text;
-      } else if (data && data.generated_text) {
-        text = data.generated_text;
-      } else if (data && typeof data === 'string') {
+      let text = '';
+      if (Array.isArray(data) && data[0] && typeof data[0] === 'string') {
+        text = data[0];
+      } else if (typeof data === 'string') {
         text = data;
+      } else if (data && data.generated_text) {
+        text = String(data.generated_text);
       } else {
         throw new Error('Unexpected Hugging Face response format');
       }
