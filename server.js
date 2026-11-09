@@ -163,20 +163,20 @@ const server = http.createServer(async (req, res) => {
       }
       
       const data = await response.json();
-      let text = '';
+      let aiResponse = '';
       
       // Handle response format
       if (Array.isArray(data) && data[0] && data[0].generated_text) {
-        text = data[0].generated_text;
+        aiResponse = data[0].generated_text;
       } else if (data && data.generated_text) {
-        text = String(data.generated_text);
+        aiResponse = String(data.generated_text);
       } else if (typeof data === 'string') {
-        text = data;
+        aiResponse = data;
       } else {
         throw new Error('Unexpected Hugging Face response format');
       }
       
-      let cleaned = cleanSpeech(text);
+      let cleaned = cleanSpeech(aiResponse);
       if (!cleaned) throw new Error('Empty response from AI');
       if (cleaned.length > 200) cleaned = cleaned.slice(0, 197) + '…';
       
