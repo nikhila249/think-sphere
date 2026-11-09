@@ -6,7 +6,7 @@ const crypto = require('crypto');
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT) || 3000;
 
-const HF_API_KEY = process.env.HF_API_KEY;
+const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -122,55 +122,38 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = JSON.parse(await readBody(req));
       
-      // Use Hugging Face Inference API
-      if (!HF_API_KEY) {
-        return json(res, 500, { error: 'Hugging Face API key not configured' });
+      // Use OpenAI API
+      if (!OPENAI_API_KEY) {
+        return json(res, 500, { error: 'OpenAI API key not configured. Add OPENAI_API_KEY to Render environment.' });
       }
       
-      const systemPrompt = 'You are Aria, a warm, friendly female voice guide on the ThinkSphere Super Intelligence website. You are speaking aloud to a visitor. Reply with exactly one or two short sentences, maximum 30 words total. Speak directly to the visitor. Do not describe the section or your answer. Never use markdown, bullet points, emojis, quotes, or reasoning. You may begin with a short welcome.';
-      
-      const userPrompt = 'Section: ThinkSphere Super Intelligence. The website is about intelligent AI-powered products and solutions that simplify lives, empower people, and create a smarter future. Now speak as Aria to the visitor about this section.';
-      
-      const payload = {
-        inputs: systemPrompt + ' ' + userPrompt,
-        parameters: {
-          max_new_tokens: 100,
-          temperature: 0.5,
-          do_sample: true
-        }
-      };
-      
-      const response = await fetch('https://api-inference.huggingface.co/models/facebook/opt-350m', {
+      const response = await fetch('https://api.openai.com/v1/chat/completions', {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${HF_API_KEY}`,
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${OPENAI_API_KEY}`
         },
-        body: JSON.stringify({ inputs: systemPrompt + ' ' + userPrompt }),
-        timeout: 15000
+        body: JSON.stringify({
+          model: 'gpt-3.5-turbo',
+          messages: [
+            { role: 'system', content: 'You are Aria, a warm, friendly female voice guide on the ThinkSphere Super Intelligence website. You are speaking aloud to a visitor. Reply with exactly one or two short sentences, maximum 30 words total. Speak directly to the visitor. Do not describe the section or your answer. Never use markdown, bullet points, emojis, quotes, or reasoning.' },
+            { role: 'user', content: 'Section: ThinkSphere Super Intelligence. The website is about intelligent AI-powered products and solutions that simplify lives, empower people, and create a smarter future. Now speak as Aria to the visitor about this section.' }
+          ],
+          temperature: 0.55,
+          max_tokens: 50
+        }),
+        timeout: 30000
       });
       
       if (!response.ok) {
         const errText = await response.text();
-        throw new Error('Hugging Face API error: ' + response.status + ' ' + errText);
+        throw new Error('OpenAI API error: ' + response.status + ' ' + errText);
       }
       
       const data = await response.json();
-      let text = '';
-      
-      let text = '';
-      if (Array.isArray(data) && data[0] && typeof data[0] === 'string') {
-        text = data[0];
-      } else if (typeof data === 'string') {
-        text = data;
-      } else if (data && data.generated_text) {
-        text = String(data.generated_text);
-      } else {
-        throw new Error('Unexpected Hugging Face response format');
-      }
-      
-      // Clean and truncate the text
+      const text = data.choices[0].message.content;
       let cleaned = cleanSpeech(text);
-      if (!cleaned) throw new Error('Empty response from Hugging Face');
+      if (!cleaned) throw new Error('Empty response from OpenAI');
       if (cleaned.length > 200) cleaned = cleaned.slice(0, 197) + '…';
       
       return json(res, 200, { text: cleaned });
