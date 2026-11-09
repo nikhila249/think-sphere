@@ -6,7 +6,8 @@ const crypto = require('crypto');
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT) || 3000;
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+const OLLAMA_URL = process.env.OLLAMA_URL || 'http://127.0.0.1:11434';
+const OLLAMA_MODEL = process.env.OLLAMA_MODEL || 'qwen2.5:1.5b';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -122,41 +123,43 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = JSON.parse(await readBody(req));
       
-      // Use OpenAI API
-      if (!OPENAI_API_KEY) {
-        return json(res, 500, { error: 'OpenAI API key not configured' });
-      }
-      
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      // Call Ollama AI
+      const system = 'You are Aria, a warm, friendly female voice guide on the ThinkSphere Super Intelligence website. '
+        + 'You are speaking aloud to a visitor. Reply with exactly one or two short sentences, maximum 30 words total. '
+        + 'Speak directly to the visitor. Do not describe the section or your answer. '
+        + 'Never use markdown, bullet points, emojis, quotes, or reasoning.'
+        + ' You may begin with a short welcome.';
+      const user = 'Section title: "ThinkSphere Super Intelligence". '
+        + 'Material: The website is about intelligent AI-powered products and solutions that simplify lives, empower people, and create a smarter future. '
+        + 'Now speak as Aria to the visitor about this section.';
+
+      const payload = {
+        model: OLLAMA_MODEL,
+        messages: [
+          { role: 'system', content: system },
+          { role: 'user', content: user }
+        ],
+        stream: false,
+        think: false,
+        keep_alive: '30m',
+        options: { temperature: 0.55, num_predict: 110 }
+      };
+
+      const resFetch = await fetch(OLLAMA_URL + '/api/chat', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_API_KEY}`
-        },
-        body: JSON.stringify({
-          model: 'gpt-4o-mini',
-          messages: [
-            { role: 'system', content: 'You are Aria, a warm, friendly female voice guide on the ThinkSphere Super Intelligence website. You are speaking aloud to a visitor. Reply with exactly one or two short sentences, maximum 30 words total. Speak directly to the visitor. Do not describe the section or your answer. Never use markdown, bullet points, emojis, quotes, or reasoning.' },
-            { role: 'user', content: 'Section: ThinkSphere Super Intelligence. The website is about intelligent AI-powered products and solutions that simplify lives, empower people, and create a smarter future. Now speak as Aria to the visitor about this section.' }
-          ],
-          temperature: 0.55,
-          max_tokens: 50
-        }),
-        timeout: 30000
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(90000)
       });
       
-      if (!response.ok) {
-        const errText = await response.text();
-        throw new Error('OpenAI API error: ' + response.status + ' ' + errText);
-      }
+      if (!resFetch.ok) throw new Error('Ollama responded ' + resFetch.status);
+      const data = await resFetch.json();
+      const raw = (data.message && data.message.content) || data.response || '';
+      let text = cleanSpeech(raw);
+      if (!text) throw new Error('Empty response from Ollama');
+      if (text.length > 200) text = text.slice(0, 197) + '…';
       
-      const data = await response.json();
-      const text = data.choices[0].message.content;
-      let cleaned = cleanSpeech(text);
-      if (!cleaned) throw new Error('Empty response from OpenAI');
-      if (cleaned.length > 200) cleaned = cleaned.slice(0, 197) + '…';
-      
-      return json(res, 200, { text: cleaned });
+      return json(res, 200, { text });
     } catch (err) {
       console.error('/api/explain error:', err.message);
       return json(res, 502, { error: String(err.message || err) });
@@ -172,4 +175,5 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log('ThinkSphere Super Intelligence is running at http://localhost:' + PORT);
+  console.log('Ollama model : ' + OLLAMA_MODEL + '  (' + OLLAMA_URL + ')');
 });
