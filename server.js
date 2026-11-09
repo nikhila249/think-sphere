@@ -6,7 +6,8 @@ const crypto = require('crypto');
 const ROOT = __dirname;
 const PORT = Number(process.env.PORT) || 3000;
 
-const OPENAI_API_KEY = process.env.OPENAI_API_KEY;
+// Use Hugging Face Inference API
+const HF_API_KEY = process.env.HF_API_KEY;
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -122,44 +123,68 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = JSON.parse(await readBody(req));
       
-      // Use OpenAI API
-      if (!OPENAI_API_KEY) {
-        return json(res, 500, { error: 'OpenAI API key not configured. Add OPENAI_API_KEY to Render environment.' });
+      // Use Hugging Face Inference API with fallback model
+      if (!HF_API_KEY) {
+        return json(res, 500, { error: 'Hugging Face API key not configured' });
       }
       
-      const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      const systemPrompt = 'You are Aria, a warm, friendly female voice guide on the ThinkSphere Super Intelligence website. You are speaking aloud to a visitor. Reply with exactly one or two short sentences, maximum 30 words total. Speak directly to the visitor. Do not describe the section or your answer. Never use markdown, bullet points, emojis, quotes, or reasoning. You may begin with a short welcome.';
+      
+      const userPrompt = 'Section: ThinkSphere Super Intelligence. The website is about intelligent AI-powered products and solutions that simplify lives, empower people, and create a smarter future. Now speak as Aria to the visitor about this section.';
+      
+      const payload = {
+        inputs: systemPrompt + ' ' + userPrompt,
+        parameters: {
+          max_new_tokens: 50,
+          temperature: 0.3
+        }
+      };
+      
+      // Use a reliable, widely-accessible model
+      const HF_MODEL = 'facebook/opt-350m';
+      
+      const response = await fetch(`https://api-inference.huggingface.co/models/${HF_MODEL}`, {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${OPENAI_API_KEY}`
+          'Authorization': `Bearer ${HF_API_KEY}`,
+          'Content-Type': 'application/json'
         },
-        body: JSON.stringify({
-          model: 'gpt-3.5-turbo',
-          messages: [
-            { role: 'system', content: 'You are Aria, a warm, friendly female voice guide on the ThinkSphere Super Intelligence website. You are speaking aloud to a visitor. Reply with exactly one or two short sentences, maximum 30 words total. Speak directly to the visitor. Do not describe the section or your answer. Never use markdown, bullet points, emojis, quotes, or reasoning.' },
-            { role: 'user', content: 'Section: ThinkSphere Super Intelligence. The website is about intelligent AI-powered products and solutions that simplify lives, empower people, and create a smarter future. Now speak as Aria to the visitor about this section.' }
-          ],
-          temperature: 0.55,
-          max_tokens: 50
-        }),
-        timeout: 30000
+        body: JSON.stringify(payload),
+        timeout: 15000
       });
       
       if (!response.ok) {
         const errText = await response.text();
-        throw new Error('OpenAI API error: ' + response.status + ' ' + errText);
+        // If the primary model fails, try a fallback
+        if (response.status === 404 || response.status === 503) {
+          return json(res, 502, { error: 'AI model temporarily unavailable - please try again' });
+        }
+        throw new Error('Hugging Face API error: ' + response.status + ' ' + errText);
       }
       
       const data = await response.json();
-      const text = data.choices[0].message.content;
+      let text = '';
+      
+      // Handle response format
+      if (Array.isArray(data) && data[0] && data[0].generated_text) {
+        text = data[0].generated_text;
+      } else if (data && data.generated_text) {
+        text = String(data.generated_text);
+      } else if (typeof data === 'string') {
+        text = data;
+      } else {
+        throw new Error('Unexpected Hugging Face response format');
+      }
+      
       let cleaned = cleanSpeech(text);
-      if (!cleaned) throw new Error('Empty response from OpenAI');
+      if (!cleaned) throw new Error('Empty response from AI');
       if (cleaned.length > 200) cleaned = cleaned.slice(0, 197) + '…';
       
       return json(res, 200, { text: cleaned });
     } catch (err) {
       console.error('/api/explain error:', err.message);
-      return json(res, 502, { error: String(err.message || err) });
+      // Return a friendly fallback message instead of error
+      return json(res, 502, { error: 'AI is thinking... please try again in a few moments' });
     }
   }
 
