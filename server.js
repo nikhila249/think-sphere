@@ -123,10 +123,13 @@ const server = http.createServer(async (req, res) => {
     try {
       const body = JSON.parse(await readBody(req));
       
-      // Use Hugging Face Inference API with fallback model
+      // Validate HF_API_KEY exists
       if (!HF_API_KEY) {
-        return json(res, 500, { error: 'Hugging Face API key not configured' });
+        console.error('[/api/explain] HF_API_KEY environment variable not set');
+        return json(res, 500, { error: 'AI service not configured' });
       }
+      
+      console.log('[/api/explain] Request received, model: facebook/opt-350m, key prefix:', HF_API_KEY?.substring(0, 8) + '...');
       
       const systemPrompt = 'You are Aria, a warm, friendly female voice guide on the ThinkSphere Super Intelligence website. You are speaking aloud to a visitor. Reply with exactly one or two short sentences, maximum 30 words total. Speak directly to the visitor. Do not describe the section or your answer. Never use markdown, bullet points, emojis, quotes, or reasoning. You may begin with a short welcome.';
       
@@ -143,7 +146,7 @@ const server = http.createServer(async (req, res) => {
       // Use a reliable, widely-accessible model
       const HF_MODEL = 'facebook/opt-350m';
       
-      const response = await fetch(`https://api-inference.huggingface.co/models/${HF_MODEL}`, {
+      const fetchOptions = {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${HF_API_KEY}`,
@@ -151,18 +154,45 @@ const server = http.createServer(async (req, res) => {
         },
         body: JSON.stringify(payload),
         timeout: 15000
-      });
+      };
+      
+      console.log('[/api/explain] Making request to:', `https://api-inference.huggingface.co/models/${HF_MODEL}`);
+      
+      const response = await fetch(`https://api-inference.huggingface.co/models/${HF_MODEL}`, fetchOptions);
+      
+      const responseText = await response.text();
+      console.log('[/api/explain] Response status:', response.status);
+      console.log('[/api/explain] Response headers:', Object.fromEntries(response.headers.entries()));
+      console.log('[/api/explain] Response body (first 200 chars):', responseText.substring(0, 200));
       
       if (!response.ok) {
-        const errText = await response.text();
         // If the primary model fails, try a fallback
         if (response.status === 404 || response.status === 503) {
+          console.log('[/api/explain] Model unavailable, trying fallback approach');
           return json(res, 502, { error: 'AI model temporarily unavailable - please try again' });
         }
-        throw new Error('Hugging Face API error: ' + response.status + ' ' + errText);
+        if (response.status === 401) {
+          console.error('[/api/explain] Authentication failed - check HF_API_KEY permissions');
+          return json(res, 500, { error: 'AI service authentication failed' });
+        }
+        if (response.status === 403) {
+          console.error('[/api/explain] Permission denied - token may not have model access');
+          return json(res, 500, { error: 'AI service permission denied' });
+        }
+        throw new Error('Hugging Face API error: ' + response.status + ' ' + responseText);
       }
       
-      const data = await response.json();
+      let data;
+      try {
+        data = await response.json();
+      } catch (e) {
+        console.error('[/api/explain] Failed to parse JSON response:', e);
+        console.error('[/api/explain] Raw response:', responseText.substring(0, 500));
+        return json(res, 502, { error: 'AI service response parse error' });
+      }
+      
+      console.log('[/api/explain] API response data keys:', Object.keys(data));
+      
       let aiResponse = '';
       
       // Handle response format
@@ -173,16 +203,18 @@ const server = http.createServer(async (req, res) => {
       } else if (typeof data === 'string') {
         aiResponse = data;
       } else {
-        throw new Error('Unexpected Hugging Face response format');
+        throw new Error('Unexpected Hugging Face response format. Keys: ' + JSON.stringify(Object.keys(data)));
       }
       
       let cleaned = cleanSpeech(aiResponse);
       if (!cleaned) throw new Error('Empty response from AI');
       if (cleaned.length > 200) cleaned = cleaned.slice(0, 197) + '…';
       
+      console.log('[/api/explain] Cleaned response:', cleaned);
       return json(res, 200, { text: cleaned });
     } catch (err) {
-      console.error('/api/explain error:', err.message);
+      console.error('[/api/explain] UNHANDLED ERROR:', err.message);
+      console.error('[/api/explain] ERROR STACK:', err.stack);
       // Return a friendly fallback message instead of error
       return json(res, 502, { error: 'AI is thinking... please try again in a few moments' });
     }
